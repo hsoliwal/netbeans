@@ -2098,15 +2098,20 @@ public class ETable extends JTable {
      * Finds maximum common prefix of 2 strings.
      */
     private static String findMaxPrefix(String str1, String str2) {
+        int limit = Math.min(str1.length(), str2.length());
         int i = 0;
-        while (str1.regionMatches(true, 0, str2, 0, i)) {
-            i++;
+        for (; i < limit; i++) {
+            if (str1.charAt(i) == str2.charAt(i)) {
+                continue;
+            }
+            // Include a preceding high surrogate so supplementary case pairs
+            // retain regionMatches semantics, including partial UTF-16 prefixes.
+            int start = i > 0 && Character.isHighSurrogate(str1.charAt(i - 1)) ? i - 1 : i;
+            if (!str1.regionMatches(true, start, str2, start, i - start + 1)) {
+                break;
+            }
         }
-        i--;
-        if (i >= 0) {
-            return str1.substring(0, i);    
-        }
-        return null;
+        return str1.substring(0, i);
     }
 
     /**
