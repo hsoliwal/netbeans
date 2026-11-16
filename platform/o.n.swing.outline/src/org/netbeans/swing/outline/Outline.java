@@ -192,7 +192,8 @@ public class Outline extends ETable {
     private boolean initialized = false;
     private Boolean cachedRootVisible = null;
     private RenderDataProvider renderDataProvider = null;
-    private ComponentListener componentListener = null;
+    // setModel can initialize this field during the superclass constructor.
+    private ComponentListener componentListener;
     private boolean selectionDisabled = false;
     private boolean rowHeightIsSet = false;
     private int selectedRow = -1;
@@ -625,10 +626,17 @@ public class Outline extends ETable {
                 
             }
             
-            layout.setRowHeight(getRowHeight());
+            // JTable installs its model before initializing the default row height.
+            // Its subsequent setRowHeight call updates the installed layout.
+            int rowHeight = getRowHeight();
+            if (initialized || rowHeight != 0) {
+                layout.setRowHeight(rowHeight);
+            }
             
             if (((OutlineModel) mdl).isLargeModel()) {
-                addComponentListener (getComponentListener());
+                if (componentListener == null) {
+                    addComponentListener (getComponentListener());
+                }
                 layout.setNodeDimensions(new ND());
             } else {
                 if (componentListener != null) {

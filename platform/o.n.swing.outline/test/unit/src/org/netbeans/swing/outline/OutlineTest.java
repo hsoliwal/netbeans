@@ -19,6 +19,8 @@
 package org.netbeans.swing.outline;
 
 import java.awt.Color;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentListener;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -26,6 +28,8 @@ import javax.swing.Icon;
 import javax.swing.event.TreeModelListener;
 import javax.swing.table.TableModel;
 import javax.swing.tree.TreeModel;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import org.netbeans.junit.NbTestCase;
 
@@ -64,6 +68,86 @@ public class OutlineTest extends NbTestCase {
         checked = outline.checkAt(2, 0, null);
         selected = rdp.isSelected(outline.getValueAt(2, 0));
         assert (checked && !selected) : "At (2, 0) checked = "+checked+", selected = "+selected;
+    }
+
+    public void testLargeModelListenerIsRegisteredOnce() {
+        Outline outline = new Outline();
+        int initialListeners = outline.getComponentListeners().length;
+        OutlineModel model = createModel(true);
+        outline.setModel(model);
+        for (int i = 0; i < 20; i++) {
+            outline.setModel(model);
+        }
+        assertEquals("One size listener for repeated large-model installation",
+                initialListeners + 1, outline.getComponentListeners().length);
+    }
+
+    public void testReplacingLargeModelsKeepsOneListener() {
+        Outline outline = new Outline();
+        int initialListeners = outline.getComponentListeners().length;
+        outline.setModel(createModel(true));
+        ComponentListener[] firstListeners = outline.getComponentListeners();
+        for (int i = 0; i < 20; i++) {
+            OutlineModel model = createModel(true);
+            outline.setModel(model);
+            assertSame("The assigned model remains authoritative", model, outline.getModel());
+            assertNotNull("Every large model retains layout geometry",
+                    model.getLayout().getNodeDimensions());
+        }
+        assertEquals(initialListeners + 1, outline.getComponentListeners().length);
+        assertEquals("Listener identity/order remains stable", Arrays.asList(firstListeners),
+                Arrays.asList(outline.getComponentListeners()));
+    }
+
+    public void testSmallModelRemovesOnlyOwnedSizeListener() {
+        Outline outline = new Outline();
+        ComponentListener external = new ComponentAdapter() { };
+        outline.addComponentListener(external);
+        ComponentListener[] initialListeners = outline.getComponentListeners();
+        for (int i = 0; i < 20; i++) {
+            outline.setModel(createModel(true));
+        }
+        outline.setModel(createModel(false));
+        assertEquals("Application listeners survive removal of the size listener",
+                Arrays.asList(initialListeners), Arrays.asList(outline.getComponentListeners()));
+        outline.setModel(createModel(true));
+        assertEquals(initialListeners.length + 1, outline.getComponentListeners().length);
+        outline.setModel(createModel(false));
+        assertEquals(Arrays.asList(initialListeners), Arrays.asList(outline.getComponentListeners()));
+    }
+
+    public void testConstructorInstalledSizeListenerRemainsOwned() {
+        Outline outline = new Outline(createModel(true));
+        assertTrue("JTable initializes a positive row height", outline.getRowHeight() > 0);
+        assertEquals(outline.getRowHeight(), outline.getOutlineModel().getLayout().getRowHeight());
+        ComponentListener[] firstListeners = outline.getComponentListeners();
+        outline.setModel(createModel(true));
+        assertEquals("Superclass installation must retain its listener ownership",
+                Arrays.asList(firstListeners), Arrays.asList(outline.getComponentListeners()));
+        outline.setModel(createModel(false));
+        assertEquals(firstListeners.length - 1, outline.getComponentListeners().length);
+    }
+
+    public void testInvalidRowHeightAfterInitializationStillFails() {
+        Outline outline = new Outline() {
+            @Override
+            public int getRowHeight() {
+                return 0;
+            }
+        };
+        try {
+            outline.setModel(createModel(true));
+            fail("Invalid initialized large-model row height must still be rejected");
+        } catch (IllegalArgumentException expected) {
+            // FixedHeightLayoutCache retains its validation contract.
+        }
+    }
+
+    private OutlineModel createModel(boolean large) {
+        DefaultMutableTreeNode root = new DefaultMutableTreeNode("root");
+        root.add(new DefaultMutableTreeNode("child"));
+        return new DefaultOutlineModel(new DefaultTreeModel(root),
+                new javax.swing.table.DefaultTableModel(2, 1), large, "Nodes");
     }
 
     /**
