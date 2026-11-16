@@ -867,7 +867,9 @@ public class OutlineView extends JScrollPane {
         outline.getSelectionModel().setValueIsAdjusting(true);
         
         outline.getSelectionModel().clearSelection();
-        int size = outline.getRowCount();
+        // No matching is needed when the manager requests an empty selection.
+        // Avoid walking every row (and creating lazy node facades) on clear.
+        int size = arr.length == 0 ? 0 : outline.getRowCount();
         int firstSelection = -1;
         for (int i = 0; i < size; i++) {
             Node n = getNodeFromRow(i);

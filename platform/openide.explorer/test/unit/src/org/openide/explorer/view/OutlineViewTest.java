@@ -546,17 +546,57 @@ public final class OutlineViewTest extends NbTestCase {
         }
     }
 
+    public void testEmptyManagerSelectionDoesNotEnumerateRows() throws Exception {
+        TestNode[] leafNodes = new TestNode[512];
+        for (int i = 0; i < leafNodes.length; i++) {
+            leafNodes[i] = new TestNode("[leaf-" + i + "]");
+        }
+        Children.Array children = new Children.Array();
+        children.add(leafNodes);
+        TestNode root = new TestNode(children, "[root]");
+        CountingOutlineView counting = new CountingOutlineView();
+        OutlineViewComponent owner = new OutlineViewComponent(root, counting);
+        counting.expandNode(root);
+        assertEquals(leafNodes.length, counting.getOutline().getRowCount());
+
+        counting.getOutline().setRowSelectionInterval(1, 1);
+        assertEquals(1, owner.getExplorerManager().getSelectedNodes().length);
+        counting.rowReads = 0;
+        owner.getExplorerManager().setSelectedNodes(new Node[0]);
+
+        assertEquals(0, counting.getOutline().getSelectedRowCount());
+        assertEquals("Clearing selection must not read any unselected rows", 0, counting.rowReads);
+    }
+
+    private static final class CountingOutlineView extends OutlineView {
+        private int rowReads;
+
+        CountingOutlineView() {
+            super("test-outline-view-component");
+        }
+
+        @Override
+        Node getNodeFromRow(int row) {
+            rowReads++;
+            return super.getNodeFromRow(row);
+        }
+    }
+
     private class OutlineViewComponent extends JPanel implements ExplorerManager.Provider {
 
         private final ExplorerManager manager = new ExplorerManager ();
         private OutlineView view;
 
         private OutlineViewComponent (Node rootNode) {
+            this(rootNode, new OutlineView ("test-outline-view-component"));
+        }
+
+        private OutlineViewComponent (Node rootNode, OutlineView actualView) {
             setLayout (new BorderLayout ());
             manager.setRootContext (rootNode);
 
             Node.Property[] props = rootNode.getPropertySets ()[0].getProperties ();
-            view = new OutlineView ("test-outline-view-component");
+            view = actualView;
             view.setProperties (props);
 
             view.getOutline ().setRootVisible (false);
