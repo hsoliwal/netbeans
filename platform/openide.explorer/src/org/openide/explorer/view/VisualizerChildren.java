@@ -206,12 +206,14 @@ final class VisualizerChildren extends Object {
         int current = 0;
         int inIndxs = 0;
 
-        while (inIndxs < indxs.length) {
-            while (current++ < indxs[inIndxs]) {
-                it.next();
+        if (!addBatch(getVisNodes(true), indxs)) {
+            while (inIndxs < indxs.length) {
+                while (current++ < indxs[inIndxs]) {
+                    it.next();
+                }
+                it.add(null);
+                inIndxs++;
             }
-            it.add(null);
-            inIndxs++;
         }
 
         recomputeIndexes(null);
@@ -246,14 +248,16 @@ final class VisualizerChildren extends Object {
         
         assert vn.size() > idxs[idxs.length - 1] : dumpEventInfo(ev);
 
-        int prev = Integer.MAX_VALUE;
-        for (int i = idxs.length - 1; i >= 0; i--) {
-            if (vn.isEmpty()) {
-                continue;
+        if (!removeBatch(vn, idxs, ev.removed)) {
+            int prev = Integer.MAX_VALUE;
+            for (int i = idxs.length - 1; i >= 0; i--) {
+                if (vn.isEmpty()) {
+                    continue;
+                }
+                assert idxs[i] < prev : "Indexes have to be descendant. Prev: " + prev + " next: " + idxs[i] + " at " + i;
+                VisualizerNode visNode = vn.remove(idxs[i]);
+                ev.removed.add(visNode != null ? visNode : VisualizerNode.EMPTY);
             }
-            assert idxs[i] < prev : "Indexes have to be descendant. Prev: " + prev + " next: " + idxs[i] + " at " + i;
-            VisualizerNode visNode = vn.remove(idxs[i]);
-            ev.removed.add(visNode != null ? visNode : VisualizerNode.EMPTY);
         }
 
         recomputeIndexes(null);
@@ -355,6 +359,64 @@ final class VisualizerChildren extends Object {
         str += " {" + snapshot + "}";
         str += "]";
         return str;
+    }
+
+    private static boolean isBatch(int[] indices, long limit) {
+        if (indices.length < 2 || limit > Integer.MAX_VALUE) {
+            return false;
+        }
+        int previous = -1;
+        for (int index : indices) {
+            if (index <= previous || index >= limit) {
+                return false;
+            }
+            previous = index;
+        }
+        return true;
+    }
+
+    private static boolean addBatch(List<VisualizerNode> nodes, int[] indices) {
+        int size = nodes.size();
+        if (!isBatch(indices, (long) size + indices.length)) {
+            return false;
+        }
+        for (int i = 0; i < indices.length; i++) {
+            nodes.add(null);
+        }
+        int read = size - 1;
+        int inserted = indices.length - 1;
+        for (int write = nodes.size() - 1; inserted >= 0; write--) {
+            if (write == indices[inserted]) {
+                nodes.set(write, null);
+                inserted--;
+            } else {
+                nodes.set(write, nodes.get(read--));
+            }
+        }
+        return true;
+    }
+
+    private static boolean removeBatch(List<VisualizerNode> nodes, int[] indices,
+            List<VisualizerNode> removed) {
+        int size = nodes.size();
+        if (!isBatch(indices, size)) {
+            return false;
+        }
+        for (int i = indices.length - 1; i >= 0; i--) {
+            VisualizerNode node = nodes.get(indices[i]);
+            removed.add(node != null ? node : VisualizerNode.EMPTY);
+        }
+        int write = indices[0];
+        int removedIndex = 0;
+        for (int read = write; read < size; read++) {
+            if (removedIndex < indices.length && read == indices[removedIndex]) {
+                removedIndex++;
+            } else {
+                nodes.set(write++, nodes.get(read));
+            }
+        }
+        nodes.subList(write, size).clear();
+        return true;
     }
 
     final List<VisualizerNode> getVisNodes(boolean guardAccess) {

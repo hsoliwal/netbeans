@@ -23,6 +23,25 @@
 
 Apache NetBeans is an open source development environment, tooling platform, and application framework.
 
+### Fork compatibility and downstream UI integration
+
+This fork follows an optimized, backward-compatible superset contract for its
+imported Apache NetBeans baseline. Changes must preserve the original public APIs,
+module exports, extension points and supported behavior, together with every
+subsequent fork API, widget and optimization. Existing applications and plugins
+must continue to use their original API names and contracts. Compatibility is
+directional: the original upstream is a supported subset of this fork.
+
+NetBeans is a downstream consumer of Swing and AWT and a receiving application
+for qualified widget and API integrations from the related component forks.
+Integrations use the existing NetBeans Platform modules and declared dependencies;
+they preserve event-dispatch-thread, selection, rendering and accessibility
+contracts. SwingX integrations retain SwingX's component APIs, and each other
+toolkit retains its own API with explicit adapters where needed. Every receiving
+change must qualify the original API and existing fork extensions with the
+module's compiler, compatibility and behavioral tests. Source presence or a
+component-level pass alone does not establish a completed NetBeans release.
+
 ### Build status
    * GitHub actions
      * [![Build Status](https://github.com/apache/netbeans/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/apache/netbeans/actions/workflows/main.yml)

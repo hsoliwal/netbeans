@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+// Modified 2026-11-15 by Hitesh Soliwal and Contributors to the Synexia Project:
+// Keep horizontal tree panning within the original visible tree column.
 package org.openide.explorer.view;
 
 import java.awt.Color;
@@ -865,7 +867,9 @@ public class OutlineView extends JScrollPane {
         outline.getSelectionModel().setValueIsAdjusting(true);
         
         outline.getSelectionModel().clearSelection();
-        int size = outline.getRowCount();
+        // No matching is needed when the manager requests an empty selection.
+        // Avoid walking every row (and creating lazy node facades) on clear.
+        int size = arr.length == 0 ? 0 : outline.getRowCount();
         int firstSelection = -1;
         for (int i = 0; i < size; i++) {
             Node n = getNodeFromRow(i);
@@ -1980,7 +1984,26 @@ public class OutlineView extends JScrollPane {
                 return ;
             }
             this.treePositionX = treePositionX;
-            tableChanged(new TableModelEvent(getModel(), 0, getRowCount(), 0));// convertColumnIndexToView(0)));
+            repaintVisibleTreeColumn();
+        }
+
+        private void repaintVisibleTreeColumn() {
+            int column = convertColumnIndexToView(0);
+            if (column < 0) {
+                return;
+            }
+            Rectangle visible = getVisibleRect();
+            if (visible.isEmpty()) {
+                return;
+            }
+            // Only column geometry is needed; panning does not change model rows.
+            Rectangle dirty = getCellRect(-1, column, true);
+            dirty.y = visible.y;
+            dirty.height = visible.height;
+            dirty = dirty.intersection(visible);
+            if (!dirty.isEmpty()) {
+                repaint(dirty);
+            }
         }
 
         private void setPreferredTreeWidth(int row, int width) {

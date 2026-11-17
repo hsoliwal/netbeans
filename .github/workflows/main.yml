@@ -456,6 +456,17 @@ jobs:
       - name: Build nbms
         run: ant $OPTS build-nbms
 
+      - name: Maven Install
+        run: |
+          # install all NBMs
+          ant maven-install -Dnbm.install.version=99-SNAPSHOT
+          # remove one
+          rm -r $HOME/.m2/repository/org/netbeans/api/org-openide-awt/99-SNAPSHOT/
+          # install a single NBM
+          ant -f platform/openide.awt maven-install -Dnbm.install.version=99-SNAPSHOT
+          # verify pom is installed
+          cat $HOME/.m2/repository/org/netbeans/api/org-openide-awt/99-SNAPSHOT/org-openide-awt-99-SNAPSHOT.pom
+
       # runs only in PRs if requested; ~18 min
       - name: Build all Tests
         if: env.test_tests == 'true' && github.event_name == 'pull_request' && success()
@@ -666,6 +677,9 @@ jobs:
       - name: ide/extexecution.base
         run: ant $OPTS -f ide/extexecution.base test
 
+      - name: ide/generic.project
+        run: ant $OPTS -f ide/generic.project test
+
       - name: ide/gsf.testrunner.ui
         run: ant $OPTS -f ide/gsf.testrunner.ui test
 
@@ -770,6 +784,9 @@ jobs:
 
       - name: ide/projectui
         run: ant $OPTS -f ide/projectui test
+
+      - name: ide/properties
+        run: ant $OPTS -f ide/properties test
 
       - name: ide/refactoring.api
         run: ant $OPTS -f ide/refactoring.api test
